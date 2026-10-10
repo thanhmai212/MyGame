@@ -1,0 +1,2552 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>TOON_VERSE: Multiverse Clash (Doraemon vs Conan)</title>
+  <style>
+    :root {
+      --primary-blue: #0288d1;
+      --doraemon-blue: #0099e5;
+      --conan-blue: #1a237e;
+      --comic-yellow: #ffd600;
+      --comic-red: #ff1744;
+      --comic-border: #111827;
+      --hud-bg: rgba(17, 24, 39, 0.88);
+      --font-comic: 'Impact', 'Arial Black', -apple-system, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #050b14;
+      font-family: var(--font-comic);
+      color: #fff;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    canvas#gameCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+    }
+
+    /* Comic Manga Halftone Vignette */
+    .comic-vignette {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(0, 0, 0, 0.9);
+      border: 4px solid #111;
+      z-index: 5;
+    }
+
+    /* TOP HUD */
+    #top-hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      z-index: 10;
+      pointer-events: none;
+      gap: 8px;
+    }
+
+    .player-card, .enemy-card {
+      pointer-events: auto;
+      background: var(--hud-bg);
+      border: 3px solid #000;
+      border-radius: 14px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 4px 4px 0px #000;
+      min-width: 190px;
+      max-width: 290px;
+      flex: 1;
+      backdrop-filter: blur(8px);
+      transition: transform 0.2s;
+    }
+
+    .player-card {
+      border-left: 6px solid var(--doraemon-blue);
+    }
+
+    .enemy-card {
+      border-right: 6px solid var(--comic-red);
+      flex-direction: row-reverse;
+      text-align: right;
+    }
+
+    .avatar-wrapper {
+      position: relative;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      border: 3px solid #000;
+      background: radial-gradient(circle, #fff 40%, #cfd8dc 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: 2px 2px 0px #000;
+    }
+
+    .avatar-wrapper img {
+      width: 90%;
+      height: 90%;
+      object-fit: contain;
+      filter: drop-shadow(1px 2px 1px rgba(0,0,0,0.4));
+      transition: transform 0.2s;
+    }
+
+    .avatar-wrapper.hit {
+      animation: avatarShake 0.3s ease;
+      border-color: var(--comic-red);
+    }
+
+    @keyframes avatarShake {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      25% { transform: translate(-4px, 2px) scale(0.9); }
+      70% { transform: translate(4px, -2px) scale(1.1); }
+    }
+
+    .status-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .char-name {
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      color: var(--comic-yellow);
+      text-shadow: 2px 2px 0px #000;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bar-container {
+      position: relative;
+      width: 100%;
+      height: 14px;
+      background: #1f2937;
+      border: 2px solid #000;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .hp-bar {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #10b981, #34d399);
+      transition: width 0.25s ease-out;
+      border-radius: 5px;
+    }
+
+    .hp-bar.low {
+      background: linear-gradient(90deg, #ef4444, #f87171);
+    }
+
+    .enemy-card .hp-bar {
+      background: linear-gradient(90deg, #f59e0b, #ef4444);
+    }
+
+    .energy-bar {
+      position: relative;
+      width: 100%;
+      height: 7px;
+      background: #111827;
+      border: 1.5px solid #000;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .energy-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #38bdf8, #00e5ff);
+      transition: width 0.1s linear;
+    }
+
+    .badge-status {
+      display: inline-block;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: #e11d48;
+      border: 1px solid #000;
+      color: #fff;
+      margin-top: 2px;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      box-shadow: 1px 1px 0px #000;
+    }
+
+    /* Center Match Banner */
+    #center-match-hud {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      pointer-events: auto;
+    }
+
+    .vs-pill {
+      background: var(--comic-yellow);
+      color: #000;
+      padding: 3px 12px;
+      border: 3px solid #000;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 900;
+      box-shadow: 3px 3px 0px #000;
+      letter-spacing: 1px;
+    }
+
+    .match-timer {
+      background: #111827;
+      border: 2px solid #000;
+      padding: 2px 10px;
+      border-radius: 10px;
+      font-size: 13px;
+      color: #38bdf8;
+      box-shadow: 2px 2px 0px #000;
+    }
+
+    .hud-controls-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 2px;
+    }
+
+    .hud-btn {
+      background: #374151;
+      border: 2px solid #000;
+      border-radius: 8px;
+      color: #fff;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 2px 2px 0px #000;
+      touch-action: manipulation;
+    }
+
+    .hud-btn:active {
+      transform: translate(2px, 2px);
+      box-shadow: none;
+    }
+
+    /* Mini-Map Radar */
+    #minimap-container {
+      position: absolute;
+      top: 86px;
+      right: 14px;
+      width: 90px;
+      height: 90px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 3px solid #000;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 4px 4px 0px #000;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    #minimapCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .radar-sweep {
+      position: absolute;
+      inset: 0;
+      border-radius: 12px;
+      background: conic-gradient(from 0deg, rgba(0, 229, 255, 0.25) 0deg, transparent 60deg);
+      animation: rotateSweep 4s linear infinite;
+    }
+
+    @keyframes rotateSweep {
+      100% { transform: rotate(360deg); }
+    }
+
+    /* CONTROLS OVERLAY (Mobile) */
+    #controls-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 15;
+    }
+
+    /* Virtual Joystick */
+    #joystick-zone {
+      position: absolute;
+      left: 16px;
+      bottom: 24px;
+      width: 150px;
+      height: 150px;
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    .joystick-base {
+      position: absolute;
+      width: 130px;
+      height: 130px;
+      left: 10px;
+      top: 10px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0, 153, 229, 0.25) 0%, rgba(15, 23, 42, 0.65) 70%);
+      border: 3px solid rgba(255, 255, 255, 0.35);
+      box-shadow: 0 0 15px rgba(0, 153, 229, 0.4), inset 0 0 10px rgba(0,0,0,0.5);
+    }
+
+    .joystick-knob {
+      position: absolute;
+      width: 58px;
+      height: 58px;
+      left: 46px;
+      top: 46px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #38bdf8 20%, #0284c7 90%);
+      border: 3px solid #fff;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+      transform: translate(0, 0);
+      will-change: transform;
+    }
+
+    /* Action Buttons Cluster (Right side) */
+    #actions-cluster {
+      position: absolute;
+      right: 16px;
+      bottom: 20px;
+      width: 200px;
+      height: 200px;
+      pointer-events: auto;
+    }
+
+    .action-btn {
+      position: absolute;
+      border-radius: 50%;
+      border: 3px solid #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 4px 4px 0px #000;
+      touch-action: manipulation;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      overflow: hidden;
+    }
+
+    .action-btn:active {
+      transform: scale(0.92);
+      box-shadow: 1px 1px 0px #000;
+    }
+
+    .action-btn img {
+      width: 65%;
+      height: 65%;
+      object-fit: contain;
+      pointer-events: none;
+    }
+
+    .action-btn .btn-key {
+      position: absolute;
+      top: 2px;
+      left: 5px;
+      font-size: 11px;
+      color: #fff;
+      font-weight: 900;
+      text-shadow: 1px 1px 0 #000, -1px -1px 0 #000;
+    }
+
+    .action-btn .btn-title {
+      font-size: 9px;
+      color: #ffd600;
+      font-weight: 900;
+      text-shadow: 1px 1px 0 #000;
+      line-height: 1;
+      margin-top: -2px;
+    }
+
+    /* Main Attack Button */
+    #btn-attack {
+      width: 72px;
+      height: 72px;
+      right: 12px;
+      bottom: 12px;
+      background: radial-gradient(circle, #ff5252, #d50000);
+      border-color: #000;
+    }
+
+    #btn-attack:after {
+      content: 'ATTACK';
+      font-size: 11px;
+      color: #ffd600;
+      font-weight: 900;
+      text-shadow: 1px 1px 0px #000;
+      margin-top: 2px;
+    }
+
+    /* Skill Q: Take-copter */
+    #btn-skill-q {
+      width: 54px;
+      height: 54px;
+      right: 92px;
+      bottom: 24px;
+      background: radial-gradient(circle, #fde047, #eab308);
+    }
+
+    /* Skill W: Small Light */
+    #btn-skill-w {
+      width: 54px;
+      height: 54px;
+      right: 130px;
+      bottom: 86px;
+      background: radial-gradient(circle, #a3e635, #65a30d);
+    }
+
+    /* Skill E: Anywhere Door */
+    #btn-skill-e {
+      width: 54px;
+      height: 54px;
+      right: 84px;
+      bottom: 138px;
+      background: radial-gradient(circle, #f472b6, #db2777);
+    }
+
+    /* Skill R: Air Cannon */
+    #btn-skill-r {
+      width: 58px;
+      height: 58px;
+      right: 14px;
+      bottom: 96px;
+      background: radial-gradient(circle, #60a5fa, #2563eb);
+    }
+
+    /* Cooldown Overlay */
+    .cd-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.78);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 2px 2px 0 #000;
+      border-radius: 50%;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .cd-overlay.active {
+      opacity: 1;
+    }
+
+    /* Comic Dialog Banner (Match End / Paused) */
+    .comic-modal {
+      position: absolute;
+      inset: 0;
+      background: rgba(10, 15, 26, 0.88);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      backdrop-filter: blur(6px);
+    }
+
+    .comic-modal.show {
+      display: flex;
+    }
+
+    .modal-box {
+      width: 90%;
+      max-width: 440px;
+      background: #1e293b;
+      border: 4px solid #000;
+      border-radius: 20px;
+      padding: 24px;
+      text-align: center;
+      box-shadow: 8px 8px 0px #000;
+      animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.6); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-title {
+      font-size: 28px;
+      color: var(--comic-yellow);
+      text-shadow: 3px 3px 0 #000;
+      margin-bottom: 10px;
+      letter-spacing: 1px;
+    }
+
+    .modal-desc {
+      font-size: 14px;
+      color: #e2e8f0;
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+
+    .modal-stats {
+      background: #0f172a;
+      border: 2px solid #000;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      text-align: left;
+    }
+
+    .modal-stats span {
+      color: #38bdf8;
+      font-weight: bold;
+    }
+
+    .comic-btn-primary {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(180deg, #ffd600, #ffab00);
+      border: 3px solid #000;
+      border-radius: 14px;
+      font-size: 18px;
+      font-weight: 900;
+      color: #000;
+      box-shadow: 4px 4px 0 #000;
+      cursor: pointer;
+      letter-spacing: 1px;
+      touch-action: manipulation;
+    }
+
+    .comic-btn-primary:active {
+      transform: translate(2px, 2px);
+      box-shadow: 2px 2px 0 #000;
+    }
+
+    /* Toast announcements */
+    #announcement-banner {
+      position: absolute;
+      top: 130px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #ffd600;
+      color: #000;
+      border: 3px solid #000;
+      padding: 6px 18px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 900;
+      box-shadow: 4px 4px 0px #000;
+      z-index: 20;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
+    }
+
+    #announcement-banner.show {
+      opacity: 1;
+      transform: translateX(-50%) scale(1.1);
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+      .player-card, .enemy-card {
+        min-width: 130px;
+        padding: 5px 8px;
+        gap: 6px;
+      }
+      .avatar-wrapper {
+        width: 42px;
+        height: 42px;
+      }
+      .char-name {
+        font-size: 12px;
+      }
+      .bar-container {
+        height: 11px;
+      }
+      #minimap-container {
+        top: 76px;
+        width: 76px;
+        height: 76px;
+      }
+      #actions-cluster {
+        right: 8px;
+        bottom: 14px;
+        width: 175px;
+        height: 175px;
+      }
+      #btn-attack {
+        width: 64px;
+        height: 64px;
+      }
+      #btn-skill-q, #btn-skill-w, #btn-skill-e {
+        width: 46px;
+        height: 46px;
+      }
+      #btn-skill-r {
+        width: 50px;
+        height: 50px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <!-- Main Battle Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Comic Manga Vignette Frame -->
+    <div class="comic-vignette"></div>
+
+    <!-- Announcement Banner -->
+    <div id="announcement-banner">ROUND 1: FIGHT!</div>
+
+    <!-- TOP HUD -->
+    <header id="top-hud">
+      <!-- Player: Doraemon -->
+      <div class="player-card" id="player-card">
+        <div class="avatar-wrapper" id="avatar-player-wrap">
+          <img id="img-avatar-doraemon" alt="Doraemon" crossOrigin="anonymous" src="https://static.wikia.nocookie.net/doraemon/images/6/63/Official_pose_-_Doraemon_-_HQ_render.png/revision/latest?cb=20260915084621&path-prefix=en">
+        </div>
+        <div class="status-info">
+          <div class="char-name">DORAEMON</div>
+          <div class="bar-container">
+            <div class="hp-bar" id="player-hp-bar" style="width: 100%;"></div>
+          </div>
+          <div class="energy-bar">
+            <div class="energy-fill" id="player-energy-bar" style="width: 100%;"></div>
+          </div>
+          <div id="player-status-badge" style="display:none;" class="badge-status">FLYING</div>
+        </div>
+      </div>
+
+      <!-- Center Match HUD -->
+      <div id="center-match-hud">
+        <div class="vs-pill">TOON_VERSE</div>
+        <div class="match-timer" id="match-timer">02:00</div>
+        <div class="hud-controls-row">
+          <button class="hud-btn" id="btn-audio" title="Bật/Tắt Âm Thanh">🔊</button>
+          <button class="hud-btn" id="btn-pause" title="Tạm Dừng / Hướng Dẫn">⏸</button>
+          <button class="hud-btn" id="btn-reset" title="Chơi Lại">🔄</button>
+        </div>
+      </div>
+
+      <!-- Enemy: Conan -->
+      <div class="enemy-card" id="enemy-card">
+        <div class="avatar-wrapper" id="avatar-enemy-wrap">
+          <img id="img-avatar-conan" alt="Conan" crossOrigin="anonymous" src="https://static.wikia.nocookie.net/caseclosed/images/1/13/Conan_Edogawa%28Detective_Conan%29.png">
+        </div>
+        <div class="status-info">
+          <div class="char-name">CONAN EDOGAWA</div>
+          <div class="bar-container">
+            <div class="hp-bar" id="enemy-hp-bar" style="width: 100%;"></div>
+          </div>
+          <div class="energy-bar">
+            <div class="energy-fill" id="enemy-energy-bar" style="width: 100%;"></div>
+          </div>
+          <div id="enemy-status-badge" style="display:none;" class="badge-status">SHRUNK</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Mini-Map Radar -->
+    <div id="minimap-container">
+      <div class="radar-sweep"></div>
+      <canvas id="minimapCanvas" width="90" height="90"></canvas>
+    </div>
+
+    <!-- Touch / Joystick Controls Layer -->
+    <div id="controls-layer">
+      <!-- Virtual Joystick for Mobile Movement -->
+      <div id="joystick-zone">
+        <div class="joystick-base" id="joystick-base"></div>
+        <div class="joystick-knob" id="joystick-knob"></div>
+      </div>
+
+      <!-- Action Cluster (Right) -->
+      <div id="actions-cluster">
+        <!-- Attack Button -->
+        <button class="action-btn" id="btn-attack" title="Đánh thường / Đấm áp suất (Space / Click)">
+          <span style="font-size:22px;">🥊</span>
+        </button>
+
+        <!-- Skill Q: Take-copter (Chong chóng tre) -->
+        <button class="action-btn" id="btn-skill-q" title="Q: Chong chóng tre (Bay & Tăng tốc 40% trong 8s)">
+          <span class="btn-key">Q</span>
+          <img id="icon-q" crossOrigin="anonymous" src="https://static.wikia.nocookie.net/doraemon/images/3/3b/Mini_Take-copter.png/revision/latest?cb=20201206044248&path-prefix=en" alt="Chong chóng">
+          <span class="btn-title">BAY</span>
+          <div class="cd-overlay" id="cd-q">0</div>
+        </button>
+
+        <!-- Skill W: Small Light (Đèn thu nhỏ) -->
+        <button class="action-btn" id="btn-skill-w" title="W: Đèn thu nhỏ (Thu nhỏ Conan 70% trong 5s)">
+          <span class="btn-key">W</span>
+          <img id="icon-w" crossOrigin="anonymous" src="https://static.wikia.nocookie.net/doraemon/images/7/7d/Small_Light.png/revision/latest?cb=20141003080601&path-prefix=en" alt="Đèn pin">
+          <span class="btn-title">THU NHỎ</span>
+          <div class="cd-overlay" id="cd-w">0</div>
+        </button>
+
+        <!-- Skill E: Anywhere Door (Cửa thần kỳ) -->
+        <button class="action-btn" id="btn-skill-e" title="E: Cửa thần kỳ (Đặt 2 cổng teleport tức thời)">
+          <span class="btn-key">E</span>
+          <img id="icon-e" crossOrigin="anonymous" src="https://static.wikia.nocookie.net/doraemon/images/a/a6/Anywhere_Door_490.png/revision/latest?cb=20190718134908&path-prefix=en" alt="Cửa thần kỳ">
+          <span class="btn-title">DỊCH CHUYỂN</span>
+          <div class="cd-overlay" id="cd-e">0</div>
+        </button>
+
+        <!-- Skill R: Air Cannon (Không khí pháo) -->
+        <button class="action-btn" id="btn-skill-r" title="R: Không khí pháo (Bắn áp suất đẩy lùi, trừ 45 HP)">
+          <span class="btn-key">R</span>
+          <img id="icon-r" crossOrigin="anonymous" src="https://static.wikia.nocookie.net/doraemon/images/f/f9/Dorami%27s_Air_Cannon.png/revision/latest?cb=20140929122658&path-prefix=en" alt="Đại bác">
+          <span class="btn-title">ĐẠI BÁC</span>
+          <div class="cd-overlay" id="cd-r">0</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Match End / Pause Modal -->
+    <div class="comic-modal" id="game-modal">
+      <div class="modal-box">
+        <h2 class="modal-title" id="modal-title">TOON_VERSE CLASH</h2>
+        <p class="modal-desc" id="modal-desc">Đấu trường đa vũ trụ anime giữa Doraemon và Conan!</p>
+        <div class="modal-stats" id="modal-stats">
+          <div>Sát thương gây ra: <span id="stat-dmg">0</span></div>
+          <div>Bảo bối đã dùng: <span id="stat-gadgets">0</span></div>
+          <div>Cổng dịch chuyển: <span id="stat-portals">0</span></div>
+          <div>Thời gian trận: <span id="stat-time">00:00</span></div>
+        </div>
+        <button class="comic-btn-primary" id="btn-modal-action">TIẾP TỤC CHIẾN ĐẤU</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       TOON_VERSE: Multiverse Clash - Game Engine (HTML5 Canvas + Web Audio API)
+       Doraemon vs Conan Arena Prototype
+       ========================================================================== */
+
+    // --- 1. WEB AUDIO SYNTHESIZER (8-bit / Synth procedural audio) ---
+    class SoundFX {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+        this.bgmPlaying = false;
+        this.bgmTimer = null;
+        this.initOnInteraction();
+      }
+
+      initOnInteraction() {
+        const unlock = () => {
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+              this.ctx = new AudioCtx();
+              this.startBGM();
+            }
+          } else if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+          window.removeEventListener('pointerdown', unlock);
+          window.removeEventListener('keydown', unlock);
+        };
+        window.addEventListener('pointerdown', unlock);
+        window.addEventListener('keydown', unlock);
+      }
+
+      playTone(freq, type = 'sine', duration = 0.2, gainPeak = 0.2, decay = true) {
+        if (!this.enabled || !this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          gain.gain.setValueAtTime(gainPeak, this.ctx.currentTime);
+          if (decay) {
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+          }
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        } catch (e) {
+          // ignore audio failure
+        }
+      }
+
+      // Air Cannon: Heavy impact pressure blast
+      playAirCannon() {
+        if (!this.enabled || !this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(260, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.45);
+          gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.45);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.45);
+        } catch (e) {}
+      }
+
+      // Take-copter: Propeller spinning flutter
+      playTakeCopter() {
+        if (!this.enabled || !this.ctx) return;
+        let t = 0;
+        const interval = setInterval(() => {
+          this.playTone(320 + Math.sin(t * 8) * 60, 'sawtooth', 0.08, 0.12);
+          t += 0.08;
+          if (t > 1.2) clearInterval(interval);
+        }, 80);
+      }
+
+      // Small Light: Sci-fi shrink ray beam
+      playSmallLight() {
+        if (!this.enabled || !this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(880, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(120, this.ctx.currentTime + 0.5);
+          gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.5);
+        } catch (e) {}
+      }
+
+      // Anywhere Door: Warp chime
+      playPortalWarp() {
+        if (!this.enabled || !this.ctx) return;
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        notes.forEach((freq, idx) => {
+          setTimeout(() => {
+            this.playTone(freq, 'sine', 0.3, 0.18);
+          }, idx * 70);
+        });
+      }
+
+      // Punch / Basic hit
+      playPunch() {
+        this.playTone(180, 'square', 0.12, 0.25);
+      }
+
+      // Conan Kick: Energetic ball smash
+      playConanKick() {
+        this.playTone(400, 'square', 0.1, 0.3);
+        setTimeout(() => this.playTone(120, 'triangle', 0.35, 0.4), 60);
+      }
+
+      // Conan Stun Needle
+      playStunDart() {
+        this.playTone(1400, 'sine', 0.15, 0.2);
+        setTimeout(() => this.playTone(600, 'sawtooth', 0.25, 0.15), 100);
+      }
+
+      // Hurt hit crunch
+      playHit() {
+        this.playTone(90, 'sawtooth', 0.15, 0.35);
+      }
+
+      // Procedural Chiptune BGM Loop
+      startBGM() {
+        if (this.bgmPlaying || !this.enabled || !this.ctx) return;
+        this.bgmPlaying = true;
+        const bassLine = [130.81, 164.81, 196.00, 220.00, 196.00, 164.81, 146.83, 164.81];
+        let step = 0;
+        this.bgmTimer = setInterval(() => {
+          if (!this.enabled || !this.bgmPlaying || !this.ctx) return;
+          const freq = bassLine[step % bassLine.length];
+          this.playTone(freq, 'triangle', 0.18, 0.08);
+          if (step % 2 === 1) {
+            this.playTone(523.25 + (step % 4) * 60, 'sine', 0.1, 0.04);
+          }
+          step++;
+        }, 240);
+      }
+
+      stopBGM() {
+        this.bgmPlaying = false;
+        if (this.bgmTimer) {
+          clearInterval(this.bgmTimer);
+          this.bgmTimer = null;
+        }
+      }
+
+      toggleAudio() {
+        this.enabled = !this.enabled;
+        if (this.enabled) {
+          this.startBGM();
+        } else {
+          this.stopBGM();
+        }
+        return this.enabled;
+      }
+    }
+
+    const sound = new SoundFX();
+
+    // --- 2. IMAGE ASSETS MANAGER & FALLBACK RENDERERS ---
+    const ASSETS = {
+      doraemon: {
+        url: 'https://static.wikia.nocookie.net/doraemon/images/6/63/Official_pose_-_Doraemon_-_HQ_render.png/revision/latest?cb=20260915084621&path-prefix=en',
+        img: new Image(),
+        loaded: false
+      },
+      conan: {
+        url: 'https://static.wikia.nocookie.net/caseclosed/images/1/13/Conan_Edogawa%28Detective_Conan%29.png',
+        img: new Image(),
+        loaded: false
+      },
+      takeCopter: {
+        url: 'https://static.wikia.nocookie.net/doraemon/images/3/3b/Mini_Take-copter.png/revision/latest?cb=20201206044248&path-prefix=en',
+        img: new Image(),
+        loaded: false
+      },
+      smallLight: {
+        url: 'https://static.wikia.nocookie.net/doraemon/images/7/7d/Small_Light.png/revision/latest?cb=20141003080601&path-prefix=en',
+        img: new Image(),
+        loaded: false
+      },
+      anywhereDoor: {
+        url: 'https://static.wikia.nocookie.net/doraemon/images/a/a6/Anywhere_Door_490.png/revision/latest?cb=20190718134908&path-prefix=en',
+        img: new Image(),
+        loaded: false
+      },
+      airCannon: {
+        url: 'https://static.wikia.nocookie.net/doraemon/images/f/f9/Dorami%27s_Air_Cannon.png/revision/latest?cb=20140929122658&path-prefix=en',
+        img: new Image(),
+        loaded: false
+      },
+      tokyoBg: {
+        url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Sotokanda%2C_Akihabara_Electric_Town_at_night_20231114.png/1280px-Sotokanda%2C_Akihabara_Electric_Town_at_night_20231114.png',
+        img: new Image(),
+        loaded: false
+      }
+    };
+
+    // Load images safely with crossOrigin="anonymous" and error handling
+    Object.keys(ASSETS).forEach(key => {
+      const item = ASSETS[key];
+      item.img.crossOrigin = 'anonymous';
+      item.img.onload = () => { item.loaded = true; };
+      item.img.onerror = () => {
+        item.loaded = false;
+        console.warn('Image asset load failed for ' + key + ', using canvas fallback renderer.');
+      };
+      item.img.src = item.url;
+    });
+
+    // --- 3. GAME CONSTANTS & WORLD ARENA ---
+    const ARENA = {
+      width: 2200,
+      height: 1400
+    };
+
+    // --- 4. GAME STATE ---
+    const game = {
+      canvas: null,
+      ctx: null,
+      minimapCanvas: null,
+      minimapCtx: null,
+      width: 0,
+      height: 0,
+      paused: false,
+      gameOver: false,
+      matchTime: 120, // 2 minutes
+      matchTimerId: null,
+
+      // Stats
+      statDamageDealt: 0,
+      statGadgetsUsed: 0,
+      statPortalsUsed: 0,
+
+      // Screen Shake
+      shakeX: 0,
+      shakeY: 0,
+      shakePower: 0,
+
+      // Camera
+      camera: { x: 0, y: 0 },
+
+      // Entities
+      player: null,
+      bot: null,
+      projectiles: [],
+      portals: [],
+      particles: [],
+      comicTexts: [],
+
+      // Controls
+      keys: {},
+      joystick: {
+        active: false,
+        startX: 0,
+        startY: 0,
+        currentX: 0,
+        currentY: 0,
+        dx: 0,
+        dy: 0,
+        distance: 0
+      }
+    };
+
+    // --- 5. COMIC HIT TEXT POPUPS ("KRA-KOOM!", "BAM!", "SHRINK!") ---
+    class ComicText {
+      constructor(x, y, text, color = '#ffd600', scale = 1) {
+        this.x = x;
+        this.y = y;
+        this.text = text;
+        this.color = color;
+        this.scale = scale;
+        this.alpha = 1;
+        this.rotation = (Math.random() - 0.5) * 0.4;
+        this.vy = -2.2;
+        this.life = 1.0;
+      }
+
+      update(dt) {
+        this.y += this.vy;
+        this.life -= dt * 1.2;
+        this.alpha = Math.max(0, this.life);
+        this.scale += dt * 0.3;
+        return this.life > 0;
+      }
+
+      draw(ctx) {
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+        ctx.scale(this.scale, this.scale);
+        ctx.font = '900 28px var(--font-comic)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // Ink Outline
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = '#000';
+        ctx.strokeText(this.text, 0, 0);
+
+        // Fill with shadow
+        ctx.fillStyle = this.color;
+        ctx.fillText(this.text, 0, 0);
+
+        ctx.restore();
+      }
+    }
+
+    // --- 6. PARTICLES (Sparks, smoke puffs, anime energy rings) ---
+    class Particle {
+      constructor(x, y, options = {}) {
+        this.x = x;
+        this.y = y;
+        this.vx = options.vx || (Math.random() - 0.5) * 6;
+        this.vy = options.vy || (Math.random() - 0.5) * 6;
+        this.size = options.size || (Math.random() * 8 + 4);
+        this.color = options.color || '#ffd600';
+        this.alpha = 1;
+        this.life = options.life || 0.6;
+        this.decay = options.decay || 1.8;
+        this.type = options.type || 'circle'; // circle, star, ring
+      }
+
+      update(dt) {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life -= dt * this.decay;
+        this.alpha = Math.max(0, this.life);
+        return this.life > 0;
+      }
+
+      draw(ctx) {
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+        ctx.fillStyle = this.color;
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1.5;
+
+        if (this.type === 'ring') {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size * (1.5 - this.life), 0, Math.PI * 2);
+          ctx.strokeStyle = this.color;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        } else {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+
+    // --- 7. TELEPORT PORTAL (Cửa thần kỳ / Anywhere Door) ---
+    class PortalPair {
+      constructor(x1, y1, x2, y2) {
+        this.doorA = { x: x1, y: y1, width: 44, height: 70 };
+        this.doorB = { x: x2, y: y2, width: 44, height: 70 };
+        this.duration = 16.0; // 16s lifespan
+        this.cooldownMap = new Map(); // prevents infinite bounce
+      }
+
+      update(dt, entities) {
+        this.duration -= dt;
+
+        // Check teleport collisions
+        entities.forEach(ent => {
+          const cd = this.cooldownMap.get(ent) || 0;
+          if (cd > 0) {
+            this.cooldownMap.set(ent, cd - dt);
+            return;
+          }
+
+          // Door A trigger
+          const distA = Math.hypot(ent.x - this.doorA.x, ent.y - this.doorA.y);
+          if (distA < 36) {
+            ent.x = this.doorB.x;
+            ent.y = this.doorB.y;
+            this.cooldownMap.set(ent, 1.8);
+            game.statPortalsUsed++;
+            sound.playPortalWarp();
+            spawnTeleportParticles(this.doorA.x, this.doorA.y);
+            spawnTeleportParticles(this.doorB.x, this.doorB.y);
+            game.comicTexts.push(new ComicText(ent.x, ent.y - 40, 'WARP!', '#db2777', 1.2));
+            return;
+          }
+
+          // Door B trigger
+          const distB = Math.hypot(ent.x - this.doorB.x, ent.y - this.doorB.y);
+          if (distB < 36) {
+            ent.x = this.doorA.x;
+            ent.y = this.doorA.y;
+            this.cooldownMap.set(ent, 1.8);
+            game.statPortalsUsed++;
+            sound.playPortalWarp();
+            spawnTeleportParticles(this.doorB.x, this.doorB.y);
+            spawnTeleportParticles(this.doorA.x, this.doorA.y);
+            game.comicTexts.push(new ComicText(ent.x, ent.y - 40, 'WARP!', '#db2777', 1.2));
+          }
+        });
+
+        return this.duration > 0;
+      }
+
+      drawDoor(ctx, door, label) {
+        ctx.save();
+        ctx.translate(door.x, door.y);
+
+        // Ground glow
+        const glow = ctx.createRadialGradient(0, 0, 10, 0, 0, 50);
+        glow.addColorStop(0, 'rgba(236, 72, 153, 0.45)');
+        glow.addColorStop(1, 'rgba(236, 72, 153, 0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(0, 0, 50, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (ASSETS.anywhereDoor.loaded) {
+          // Draw image with comic ink outline
+          ctx.shadowColor = '#000';
+          ctx.shadowBlur = 8;
+          ctx.drawImage(ASSETS.anywhereDoor.img, -28, -55, 56, 80);
+        } else {
+          // Fallback Anywhere Door Vector
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = '#000';
+          ctx.fillStyle = '#ec4899';
+          ctx.fillRect(-22, -45, 44, 70);
+          ctx.strokeRect(-22, -45, 44, 70);
+
+          // Inner door panel
+          ctx.fillStyle = '#f472b6';
+          ctx.fillRect(-17, -40, 34, 60);
+          ctx.strokeRect(-17, -40, 34, 60);
+
+          // Golden knob
+          ctx.fillStyle = '#fde047';
+          ctx.beginPath();
+          ctx.arc(10, -10, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        // Label Tag
+        ctx.font = '900 12px var(--font-comic)';
+        ctx.fillStyle = '#ffd600';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 3;
+        ctx.textAlign = 'center';
+        ctx.strokeText(label, 0, -58);
+        ctx.fillText(label, 0, -58);
+
+        ctx.restore();
+      }
+
+      draw(ctx) {
+        this.drawDoor(ctx, this.doorA, 'CỬA A');
+        this.drawDoor(ctx, this.doorB, 'CỬA B');
+      }
+    }
+
+    function spawnTeleportParticles(x, y) {
+      for (let i = 0; i < 16; i++) {
+        game.particles.push(new Particle(x, y, {
+          color: '#f472b6',
+          size: Math.random() * 6 + 3,
+          vx: (Math.random() - 0.5) * 8,
+          vy: (Math.random() - 0.5) * 8,
+          decay: 2.2
+        }));
+      }
+    }
+
+    // --- 8. PROJECTILE SYSTEM (Air Cannon Shockwave, Conan Soccer Ball, Stun Dart) ---
+    class Projectile {
+      constructor(options) {
+        this.x = options.x;
+        this.y = options.y;
+        this.vx = options.vx;
+        this.vy = options.vy;
+        this.radius = options.radius || 12;
+        this.damage = options.damage || 20;
+        this.owner = options.owner; // 'player' or 'bot'
+        this.type = options.type;   // 'air_cannon', 'punch', 'soccer_ball', 'stun_dart', 'shrink_beam'
+        this.life = options.life || 3.0;
+        this.knockback = options.knockback || 8;
+        this.color = options.color || '#fff';
+      }
+
+      update(dt) {
+        this.x += this.vx * dt * 60;
+        this.y += this.vy * dt * 60;
+        this.life -= dt;
+
+        // Spawn particle trail
+        if (Math.random() < 0.6) {
+          game.particles.push(new Particle(this.x, this.y, {
+            size: this.radius * 0.5,
+            color: this.color,
+            vx: -this.vx * 0.1,
+            vy: -this.vy * 0.1,
+            decay: 3
+          }));
+        }
+
+        // Out of arena check
+        if (this.x < 0 || this.x > ARENA.width || this.y < 0 || this.y > ARENA.height) {
+          return false;
+        }
+
+        return this.life > 0;
+      }
+
+      draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+
+        if (this.type === 'air_cannon') {
+          // Shockwave air rings
+          ctx.beginPath();
+          ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
+          ctx.fill();
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = '#fff';
+          ctx.stroke();
+
+          // Outer sonic wave
+          ctx.beginPath();
+          ctx.arc(0, 0, this.radius * 1.4, -0.6, 0.6);
+          ctx.lineWidth = 5;
+          ctx.strokeStyle = '#0284c7';
+          ctx.stroke();
+        } else if (this.type === 'soccer_ball') {
+          // Conan flaming soccer ball
+          ctx.beginPath();
+          ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+          ctx.fillStyle = '#fff';
+          ctx.fill();
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = '#000';
+          ctx.stroke();
+
+          // Lightning / fire aura
+          ctx.strokeStyle = '#ef4444';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(0, 0, this.radius + 4, 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (this.type === 'stun_dart') {
+          // Silver tranquilizer needle
+          ctx.rotate(Math.atan2(this.vy, this.vx));
+          ctx.fillStyle = '#e2e8f0';
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 2;
+          ctx.fillRect(-12, -2, 24, 4);
+          ctx.strokeRect(-12, -2, 24, 4);
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(8, -4, 6, 8); // red dart tail
+        } else {
+          // Basic Punch / Dorayaki blast
+          ctx.beginPath();
+          ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+          ctx.fillStyle = this.color;
+          ctx.fill();
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = '#000';
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+    }
+
+    // --- 9. CHARACTERS: DORAEMON & BOT CONAN ---
+    class Character {
+      constructor(options) {
+        this.x = options.x;
+        this.y = options.y;
+        this.radius = 32;
+        this.hp = 100;
+        this.maxHp = 100;
+        this.energy = 100;
+        this.maxEnergy = 100;
+        this.speed = options.speed || 5.2;
+        this.baseSpeed = this.speed;
+        this.facing = 1; // 1 = right, -1 = left
+        this.isBot = options.isBot || false;
+        this.name = options.name;
+
+        // Cel-shading & Visual FX
+        this.scale = 1.0;
+        this.targetScale = 1.0;
+        this.elevationY = 0; // for Take-copter flight
+        this.hurtTimer = 0;
+        this.tilt = 0;
+
+        // Status Effects
+        this.isFlying = false;
+        this.flyTimer = 0;
+        this.isShrunk = false;
+        this.shrunkTimer = 0;
+        this.isStunned = false;
+        this.stunTimer = 0;
+        this.isSkating = false;
+        this.skateTimer = 0;
+
+        // Cooldowns
+        this.cooldowns = {
+          q: 0,
+          w: 0,
+          e: 0,
+          r: 0,
+          attack: 0,
+          botKick: 0,
+          botSkate: 0,
+          botStun: 0
+        };
+      }
+
+      takeDamage(amount, knockX = 0, knockY = 0) {
+        const actualDmg = this.isShrunk ? amount * 1.3 : amount;
+        this.hp = Math.max(0, this.hp - actualDmg);
+        this.hurtTimer = 0.25;
+
+        // Knockback
+        this.x = Math.max(40, Math.min(ARENA.width - 40, this.x + knockX));
+        this.y = Math.max(40, Math.min(ARENA.height - 40, this.y + knockY));
+
+        sound.playHit();
+        addScreenShake(7);
+
+        // Blood/hit sparks
+        for (let i = 0; i < 10; i++) {
+          game.particles.push(new Particle(this.x, this.y, {
+            color: '#ef4444',
+            size: Math.random() * 5 + 3,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8
+          }));
+        }
+
+        if (this.isBot) {
+          game.statDamageDealt += Math.round(actualDmg);
+        }
+
+        return this.hp <= 0;
+      }
+
+      applyShrink(duration = 5.0) {
+        this.isShrunk = true;
+        this.shrunkTimer = duration;
+        this.targetScale = 0.3; // 70% reduction
+        this.speed = this.baseSpeed * 0.6;
+        sound.playSmallLight();
+        game.comicTexts.push(new ComicText(this.x, this.y - 50, 'SHRUNK! 30%', '#a3e635', 1.3));
+      }
+
+      applyStun(duration = 1.5) {
+        this.isStunned = true;
+        this.stunTimer = duration;
+        sound.playStunDart();
+        game.comicTexts.push(new ComicText(this.x, this.y - 50, 'STUNNED! Zzz', '#38bdf8', 1.2));
+      }
+
+      updateCommon(dt) {
+        // Smooth scale lerp
+        this.scale += (this.targetScale - this.scale) * dt * 8;
+
+        // Energy regen
+        this.energy = Math.min(this.maxEnergy, this.energy + dt * 14);
+
+        // Cooldown ticks
+        Object.keys(this.cooldowns).forEach(key => {
+          if (this.cooldowns[key] > 0) {
+            this.cooldowns[key] = Math.max(0, this.cooldowns[key] - dt);
+          }
+        });
+
+        // Hurt flash tick
+        if (this.hurtTimer > 0) this.hurtTimer -= dt;
+
+        // Flying tick (Take-copter)
+        if (this.isFlying) {
+          this.flyTimer -= dt;
+          this.elevationY = Math.sin(Date.now() * 0.008) * 6 - 22; // float above ground
+          if (this.flyTimer <= 0) {
+            this.isFlying = false;
+            this.elevationY = 0;
+            this.speed = this.baseSpeed;
+          }
+        }
+
+        // Shrunk tick
+        if (this.isShrunk) {
+          this.shrunkTimer -= dt;
+          if (this.shrunkTimer <= 0) {
+            this.isShrunk = false;
+            this.targetScale = 1.0;
+            this.speed = this.baseSpeed;
+          }
+        }
+
+        // Stun tick
+        if (this.isStunned) {
+          this.stunTimer -= dt;
+          if (this.stunTimer <= 0) {
+            this.isStunned = false;
+          }
+        }
+
+        // Boundary Clamp
+        this.x = Math.max(40, Math.min(ARENA.width - 40, this.x));
+        this.y = Math.max(40, Math.min(ARENA.height - 40, this.y));
+      }
+    }
+
+    // --- 10. DORAEMON (PLAYER) IMPLEMENTATION ---
+    class PlayerDoraemon extends Character {
+      constructor(x, y) {
+        super({ x, y, speed: 5.6, name: 'Doraemon' });
+      }
+
+      update(dt) {
+        this.updateCommon(dt);
+
+        if (this.isStunned) return;
+
+        // Read Movement input from Joystick or Keyboard
+        let moveX = 0;
+        let moveY = 0;
+
+        if (game.joystick.active) {
+          moveX = game.joystick.dx;
+          moveY = game.joystick.dy;
+        } else {
+          if (game.keys['KeyW'] || game.keys['ArrowUp']) moveY -= 1;
+          if (game.keys['KeyS'] || game.keys['ArrowDown']) moveY += 1;
+          if (game.keys['KeyA'] || game.keys['ArrowLeft']) moveX -= 1;
+          if (game.keys['KeyD'] || game.keys['ArrowRight']) moveX += 1;
+
+          const len = Math.hypot(moveX, moveY);
+          if (len > 0) {
+            moveX /= len;
+            moveY /= len;
+          }
+        }
+
+        if (moveX !== 0 || moveY !== 0) {
+          this.x += moveX * this.speed * dt * 60;
+          this.y += moveY * this.speed * dt * 60;
+          this.facing = moveX > 0 ? 1 : (moveX < 0 ? -1 : this.facing);
+          this.tilt = moveX * 0.12;
+
+          // Running dust
+          if (Math.random() < 0.3 && !this.isFlying) {
+            game.particles.push(new Particle(this.x, this.y + 26, {
+              color: '#94a3b8',
+              size: Math.random() * 4 + 2,
+              vx: -moveX * 2,
+              vy: -0.5,
+              decay: 2.5
+            }));
+          }
+        } else {
+          this.tilt *= 0.8;
+        }
+      }
+
+      // Skill Q: Chong chóng tre (Take-copter)
+      useSkillQ() {
+        if (this.cooldowns.q > 0 || this.isStunned) return;
+        this.isFlying = true;
+        this.flyTimer = 8.0;
+        this.speed = this.baseSpeed * 1.4; // +40% speed
+        this.cooldowns.q = 12.0;
+        game.statGadgetsUsed++;
+        sound.playTakeCopter();
+        game.comicTexts.push(new ComicText(this.x, this.y - 60, 'TAKE-COPTER!', '#fde047', 1.3));
+        showAnnouncement('CHONG CHÓNG TRE: BAY & TĂNG TỐC 40%!');
+      }
+
+      // Skill W: Đèn thu nhỏ (Small Light)
+      useSkillW(target) {
+        if (this.cooldowns.w > 0 || this.isStunned) return;
+        this.cooldowns.w = 8.0;
+        game.statGadgetsUsed++;
+        sound.playSmallLight();
+
+        const dx = target.x - this.x;
+        const dy = target.y - this.y;
+        const dist = Math.hypot(dx, dy);
+
+        // Flash Light Cone effect
+        for (let i = 0; i < 24; i++) {
+          const angle = Math.atan2(dy, dx) + (Math.random() - 0.5) * 0.7;
+          const pDist = Math.random() * 320;
+          game.particles.push(new Particle(this.x + Math.cos(angle) * pDist, this.y + Math.sin(angle) * pDist, {
+            color: '#a3e635',
+            size: Math.random() * 7 + 4,
+            decay: 2.5,
+            type: 'ring'
+          }));
+        }
+
+        // Hit Conan check in cone
+        if (dist < 380) {
+          target.applyShrink(5.0);
+          target.takeDamage(15, (dx / dist) * 4, (dy / dist) * 4);
+        }
+
+        game.comicTexts.push(new ComicText(this.x, this.y - 60, 'SMALL LIGHT!', '#a3e635', 1.3));
+        showAnnouncement('ĐÈN THU NHỎ: CONAN BỊ GIẢM 70% KÍCH THƯỚC!');
+      }
+
+      // Skill E: Cửa thần kỳ (Anywhere Door)
+      useSkillE() {
+        if (this.cooldowns.e > 0 || this.isStunned) return;
+        this.cooldowns.e = 10.0;
+        game.statGadgetsUsed++;
+
+        const targetX = this.x + this.facing * 340;
+        const targetY = this.y;
+
+        const doorPair = new PortalPair(this.x, this.y, targetX, targetY);
+        game.portals.push(doorPair);
+
+        sound.playPortalWarp();
+        spawnTeleportParticles(this.x, this.y);
+        spawnTeleportParticles(targetX, targetY);
+        game.comicTexts.push(new ComicText(this.x, this.y - 60, 'ANYWHERE DOOR!', '#ec4899', 1.3));
+        showAnnouncement('CỬA THẦN KỲ: ĐÃ ĐẶT 2 CỔNG DỊCH CHUYỂN!');
+      }
+
+      // Skill R: Không khí pháo (Air Cannon)
+      useSkillR(target) {
+        if (this.cooldowns.r > 0 || this.isStunned) return;
+        this.cooldowns.r = 6.0;
+        game.statGadgetsUsed++;
+        sound.playAirCannon();
+
+        const dx = target.x - this.x;
+        const dy = target.y - this.y;
+        const dist = Math.hypot(dx, dy) || 1;
+
+        const vx = (dx / dist) * 16;
+        const vy = (dy / dist) * 16;
+
+        game.projectiles.push(new Projectile({
+          x: this.x + this.facing * 35,
+          y: this.y - 6,
+          vx: vx,
+          vy: vy,
+          radius: 26,
+          damage: 45,
+          knockback: 26,
+          owner: 'player',
+          type: 'air_cannon',
+          color: '#38bdf8'
+        }));
+
+        addScreenShake(12);
+        game.comicTexts.push(new ComicText(this.x, this.y - 60, 'KRA-KOOM!', '#38bdf8', 1.4));
+        showAnnouncement('KHÔNG KHÍ PHÁO: BẮN ÁP SUẤT CỰC ĐẠI!');
+      }
+
+      // Basic Attack / Punch
+      useAttack(target) {
+        if (this.cooldowns.attack > 0 || this.isStunned) return;
+        this.cooldowns.attack = 0.45;
+        sound.playPunch();
+
+        const dx = target.x - this.x;
+        const dy = target.y - this.y;
+        const dist = Math.hypot(dx, dy) || 1;
+
+        game.projectiles.push(new Projectile({
+          x: this.x + this.facing * 28,
+          y: this.y,
+          vx: (dx / dist) * 14,
+          vy: (dy / dist) * 14,
+          radius: 14,
+          damage: 16,
+          knockback: 10,
+          owner: 'player',
+          type: 'punch',
+          color: '#ffd600'
+        }));
+
+        game.comicTexts.push(new ComicText(this.x + this.facing * 40, this.y, 'BAM!', '#ffd600', 1.0));
+      }
+
+      draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y + this.elevationY);
+        ctx.scale(this.facing * this.scale, this.scale);
+        ctx.rotate(this.facing * this.tilt);
+
+        // Ground shadow
+        const shadowScale = this.isFlying ? 0.5 : 1.0;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.beginPath();
+        ctx.ellipse(0, 32 - this.elevationY, 26 * shadowScale, 10 * shadowScale, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Hurt flash filter
+        if (this.hurtTimer > 0) {
+          ctx.filter = 'brightness(2) drop-shadow(0 0 10px #ff1744)';
+        }
+
+        // Draw Doraemon Sprite or Fallback Vector
+        if (ASSETS.doraemon.loaded) {
+          // Comic Ink Outline drop shadow
+          ctx.shadowColor = '#000';
+          ctx.shadowBlur = 4;
+          ctx.drawImage(ASSETS.doraemon.img, -36, -42, 72, 84);
+        } else {
+          // Fallback Doraemon Cel-Shaded Vector
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = '#000';
+
+          // Body
+          ctx.fillStyle = '#0099e5';
+          ctx.beginPath();
+          ctx.arc(0, 4, 30, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // White belly
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.arc(0, 10, 20, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // Red collar & Golden bell
+          ctx.fillStyle = '#e11d48';
+          ctx.fillRect(-18, -4, 36, 6);
+          ctx.strokeRect(-18, -4, 36, 6);
+
+          ctx.fillStyle = '#fde047';
+          ctx.beginPath();
+          ctx.arc(0, 2, 6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // Big anime eyes & nose
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.ellipse(-8, -18, 9, 12, 0, 0, Math.PI * 2);
+          ctx.ellipse(8, -18, 9, 12, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#000';
+          ctx.beginPath();
+          ctx.arc(-5, -18, 4, 0, Math.PI * 2);
+          ctx.arc(5, -18, 4, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.arc(0, -8, 6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        // Take-copter on Head when flying
+        if (this.isFlying) {
+          ctx.save();
+          ctx.translate(0, -42);
+          // Rotating propeller
+          const spin = Math.sin(Date.now() * 0.05) * 22;
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = '#000';
+          ctx.fillStyle = '#fde047';
+
+          // Shaft
+          ctx.fillRect(-3, 0, 6, 12);
+          ctx.strokeRect(-3, 0, 6, 12);
+
+          // Blade
+          ctx.beginPath();
+          ctx.ellipse(0, 0, Math.abs(spin) + 4, 4, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Stunned stars / Zzz
+        if (this.isStunned) {
+          ctx.font = '900 16px var(--font-comic)';
+          ctx.fillStyle = '#38bdf8';
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 3;
+          ctx.strokeText('Z z Z...', 14, -40);
+          ctx.fillText('Z z Z...', 14, -40);
+        }
+
+        ctx.restore();
+      }
+    }
+
+    // --- 11. BOT EDOGAWA CONAN IMPLEMENTATION ---
+    class BotConan extends Character {
+      constructor(x, y) {
+        super({ x, y, speed: 5.1, isBot: true, name: 'Conan' });
+        this.aiDecisionTimer = 0;
+        this.targetDist = 280;
+        this.strafeAngle = 0;
+      }
+
+      update(dt, player) {
+        this.updateCommon(dt);
+
+        if (this.isStunned) return;
+
+        // Skate boost expiration
+        if (this.isSkating) {
+          this.skateTimer -= dt;
+          if (this.skateTimer <= 0) {
+            this.isSkating = false;
+            this.speed = this.baseSpeed;
+          }
+        }
+
+        const dx = player.x - this.x;
+        const dy = player.y - this.y;
+        const dist = Math.hypot(dx, dy);
+
+        this.facing = dx > 0 ? 1 : -1;
+
+        // Smart Bot AI Decision Tree
+        this.aiDecisionTimer -= dt;
+        if (this.aiDecisionTimer <= 0) {
+          this.aiDecisionTimer = 0.35 + Math.random() * 0.25;
+
+          // Evasion check: if an incoming air cannon projectile is near, dodge sideways!
+          const threat = game.projectiles.find(p => p.owner === 'player' && Math.hypot(p.x - this.x, p.y - this.y) < 180);
+          if (threat) {
+            this.strafeAngle = Math.atan2(this.y - threat.y, this.x - threat.x) + (Math.random() > 0.5 ? 1.2 : -1.2);
+            // Turbo skate dodge if available
+            if (this.cooldowns.botSkate <= 0 && Math.random() < 0.6) {
+              this.useTurboSkateboard();
+            }
+          } else {
+            // Tactical distance keeper
+            if (this.isShrunk) {
+              // Shrunk! Run away and snipe from far!
+              this.strafeAngle = Math.atan2(-dy, -dx) + (Math.random() - 0.5) * 0.8;
+            } else if (dist > 360) {
+              // Approach
+              this.strafeAngle = Math.atan2(dy, dx);
+            } else if (dist < 180) {
+              // Retreat
+              this.strafeAngle = Math.atan2(-dy, -dx);
+            } else {
+              // Strafe circle around Doraemon
+              this.strafeAngle = Math.atan2(dy, dx) + Math.PI / 2 * (Math.random() > 0.5 ? 1 : -1);
+            }
+          }
+
+          // Bot Attack decisions
+          if (dist < 420 && this.cooldowns.botKick <= 0) {
+            this.usePowerKick(player);
+          } else if (dist < 320 && this.cooldowns.botStun <= 0 && Math.random() < 0.5) {
+            this.useStunWristwatch(player);
+          }
+        }
+
+        // Apply bot movement
+        this.x += Math.cos(this.strafeAngle) * this.speed * dt * 60;
+        this.y += Math.sin(this.strafeAngle) * this.speed * dt * 60;
+
+        // Skate trail
+        if (this.isSkating && Math.random() < 0.5) {
+          game.particles.push(new Particle(this.x, this.y + 24, {
+            color: '#38bdf8',
+            size: 6,
+            decay: 3
+          }));
+        }
+      }
+
+      // Conan Skill 1: Giày tăng lực (Power-Enhancing Kick Shoes)
+      usePowerKick(target) {
+        this.cooldowns.botKick = 5.0;
+        sound.playConanKick();
+
+        const dx = target.x - this.x;
+        const dy = target.y - this.y;
+        const dist = Math.hypot(dx, dy) || 1;
+
+        game.projectiles.push(new Projectile({
+          x: this.x + this.facing * 30,
+          y: this.y,
+          vx: (dx / dist) * 13,
+          vy: (dy / dist) * 13,
+          radius: 20,
+          damage: this.isShrunk ? 14 : 35,
+          knockback: 18,
+          owner: 'bot',
+          type: 'soccer_ball',
+          color: '#ef4444'
+        }));
+
+        game.comicTexts.push(new ComicText(this.x, this.y - 50, 'SOCCER KICK!', '#ef4444', 1.3));
+      }
+
+      // Conan Skill 2: Ván trượt siêu tốc (Turbo Engine Skateboard)
+      useTurboSkateboard() {
+        this.cooldowns.botSkate = 10.0;
+        this.isSkating = true;
+        this.skateTimer = 3.0;
+        this.speed = this.baseSpeed * 2.3;
+        sound.playTone(380, 'sawtooth', 0.4, 0.2);
+        game.comicTexts.push(new ComicText(this.x, this.y - 50, 'TURBO SKATE!', '#38bdf8', 1.2));
+      }
+
+      // Conan Skill 3: Đồng hồ gây mê (Stun-Gun Wristwatch)
+      useStunWristwatch(target) {
+        this.cooldowns.botStun = 12.0;
+        sound.playStunDart();
+
+        const dx = target.x - this.x;
+        const dy = target.y - this.y;
+        const dist = Math.hypot(dx, dy) || 1;
+
+        game.projectiles.push(new Projectile({
+          x: this.x + this.facing * 20,
+          y: this.y - 10,
+          vx: (dx / dist) * 18,
+          vy: (dy / dist) * 18,
+          radius: 8,
+          damage: 10,
+          knockback: 4,
+          owner: 'bot',
+          type: 'stun_dart',
+          color: '#cbd5e1'
+        }));
+
+        game.comicTexts.push(new ComicText(this.x, this.y - 50, 'STUN DART!', '#f59e0b', 1.1));
+      }
+
+      draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.scale(this.facing * this.scale, this.scale);
+
+        // Ground shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.beginPath();
+        ctx.ellipse(0, 32, 22, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Hurt flash filter
+        if (this.hurtTimer > 0) {
+          ctx.filter = 'brightness(2) drop-shadow(0 0 10px #ff1744)';
+        }
+
+        // Draw Conan Sprite or Fallback Vector
+        if (ASSETS.conan.loaded) {
+          ctx.shadowColor = '#000';
+          ctx.shadowBlur = 4;
+          ctx.drawImage(ASSETS.conan.img, -34, -44, 68, 88);
+        } else {
+          // Fallback Conan Cel-Shaded Vector
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = '#000';
+
+          // Blue Suit
+          ctx.fillStyle = '#1e3a8a';
+          ctx.fillRect(-18, -4, 36, 36);
+          ctx.strokeRect(-18, -4, 36, 36);
+
+          // Red Bowtie
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.moveTo(-10, -8);
+          ctx.lineTo(10, 0);
+          ctx.lineTo(10, -8);
+          ctx.lineTo(-10, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // Face & Big round glasses
+          ctx.fillStyle = '#fed7aa';
+          ctx.beginPath();
+          ctx.arc(0, -22, 18, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = '#000';
+          ctx.strokeRect(-14, -28, 12, 10);
+          ctx.strokeRect(2, -28, 12, 10);
+
+          // Spiky hair
+          ctx.fillStyle = '#1e293b';
+          ctx.beginPath();
+          ctx.moveTo(-16, -30);
+          ctx.lineTo(-10, -42);
+          ctx.lineTo(4, -36);
+          ctx.lineTo(14, -44);
+          ctx.lineTo(16, -26);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        // Skateboard underneath if skating
+        if (this.isSkating) {
+          ctx.fillStyle = '#f59e0b';
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 3;
+          ctx.fillRect(-26, 26, 52, 6);
+          ctx.strokeRect(-26, 26, 52, 6);
+        }
+
+        // Shrunk sparkles
+        if (this.isShrunk) {
+          ctx.font = '900 13px var(--font-comic)';
+          ctx.fillStyle = '#a3e635';
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 2;
+          ctx.strokeText('TÍ HON!', 0, -50);
+          ctx.fillText('TÍ HON!', 0, -50);
+        }
+
+        ctx.restore();
+      }
+    }
+
+    // --- 12. SCREEN SHAKE HELPER ---
+    function addScreenShake(power) {
+      game.shakePower = Math.max(game.shakePower, power);
+    }
+
+    function showAnnouncement(text) {
+      const banner = document.getElementById('announcement-banner');
+      banner.textContent = text;
+      banner.classList.add('show');
+      clearTimeout(banner._timer);
+      banner._timer = setTimeout(() => {
+        banner.classList.remove('show');
+      }, 2000);
+    }
+
+    // --- 13. GAME INITIALIZATION & LOOP ---
+    function initGame() {
+      game.canvas = document.getElementById('gameCanvas');
+      game.ctx = game.canvas.getContext('2d');
+      game.minimapCanvas = document.getElementById('minimapCanvas');
+      game.minimapCtx = game.minimapCanvas.getContext('2d');
+
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      // Reset entities
+      game.player = new PlayerDoraemon(ARENA.width * 0.3, ARENA.height * 0.5);
+      game.bot = new BotConan(ARENA.width * 0.7, ARENA.height * 0.5);
+      game.projectiles = [];
+      game.portals = [];
+      game.particles = [];
+      game.comicTexts = [];
+      game.matchTime = 120;
+      game.gameOver = false;
+      game.paused = false;
+
+      // Stats
+      game.statDamageDealt = 0;
+      game.statGadgetsUsed = 0;
+      game.statPortalsUsed = 0;
+
+      // Match Timer
+      if (game.matchTimerId) clearInterval(game.matchTimerId);
+      game.matchTimerId = setInterval(() => {
+        if (!game.paused && !game.gameOver) {
+          game.matchTime--;
+          updateTimerUI();
+          if (game.matchTime <= 0) {
+            endMatch('TIME OUT! TRẬN ĐẤU KẾT THÚC!');
+          }
+        }
+      }, 1000);
+
+      setupInput();
+      setupUIEvents();
+
+      // Start main game loop
+      let lastTime = performance.now();
+      function loop(now) {
+        const dt = Math.min((now - lastTime) / 1000, 0.1);
+        lastTime = now;
+
+        if (!game.paused && !game.gameOver) {
+          update(dt);
+        }
+        render();
+
+        requestAnimationFrame(loop);
+      }
+      requestAnimationFrame(loop);
+
+      showAnnouncement('TOON_VERSE: DORAEMON VS CONAN!');
+    }
+
+    function resizeCanvas() {
+      game.width = window.innerWidth;
+      game.height = window.innerHeight;
+      game.canvas.width = game.width * window.devicePixelRatio;
+      game.canvas.height = game.height * window.devicePixelRatio;
+      game.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+
+    // --- 14. INPUT HANDLING (Virtual Joystick + WASD + Keyboard shortcuts) ---
+    function setupInput() {
+      // Keyboard
+      window.addEventListener('keydown', e => {
+        game.keys[e.code] = true;
+
+        if (e.code === 'KeyQ') game.player.useSkillQ();
+        if (e.code === 'KeyW') game.player.useSkillW(game.bot);
+        if (e.code === 'KeyE') game.player.useSkillE();
+        if (e.code === 'KeyR') game.player.useSkillR(game.bot);
+        if (e.code === 'Space') game.player.useAttack(game.bot);
+      });
+
+      window.addEventListener('keyup', e => {
+        game.keys[e.code] = false;
+      });
+
+      // Mouse click on canvas for basic attack
+      game.canvas.addEventListener('pointerdown', e => {
+        if (e.target === game.canvas && !game.joystick.active) {
+          game.player.useAttack(game.bot);
+        }
+      });
+
+      // Virtual Joystick on Touch
+      const zone = document.getElementById('joystick-zone');
+      const knob = document.getElementById('joystick-knob');
+      const maxRadius = 50;
+
+      function handleJoystickStart(clientX, clientY) {
+        const rect = zone.getBoundingClientRect();
+        game.joystick.active = true;
+        game.joystick.startX = rect.left + rect.width / 2;
+        game.joystick.startY = rect.top + rect.height / 2;
+        handleJoystickMove(clientX, clientY);
+      }
+
+      function handleJoystickMove(clientX, clientY) {
+        if (!game.joystick.active) return;
+        const dx = clientX - game.joystick.startX;
+        const dy = clientY - game.joystick.startY;
+        const dist = Math.hypot(dx, dy);
+
+        const clampedDist = Math.min(dist, maxRadius);
+        const angle = Math.atan2(dy, dx);
+
+        const knobX = Math.cos(angle) * clampedDist;
+        const knobY = Math.sin(angle) * clampedDist;
+
+        knob.style.transform = `translate(${knobX}px, ${knobY}px)`;
+
+        game.joystick.dx = clampedDist > 6 ? knobX / maxRadius : 0;
+        game.joystick.dy = clampedDist > 6 ? knobY / maxRadius : 0;
+      }
+
+      function handleJoystickEnd() {
+        game.joystick.active = false;
+        game.joystick.dx = 0;
+        game.joystick.dy = 0;
+        knob.style.transform = 'translate(0px, 0px)';
+      }
+
+      zone.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        zone.setPointerCapture(e.pointerId);
+        handleJoystickStart(e.clientX, e.clientY);
+      });
+
+      zone.addEventListener('pointermove', e => {
+        if (game.joystick.active) {
+          e.preventDefault();
+          handleJoystickMove(e.clientX, e.clientY);
+        }
+      });
+
+      zone.addEventListener('pointerup', e => {
+        handleJoystickEnd();
+      });
+
+      zone.addEventListener('pointercancel', e => {
+        handleJoystickEnd();
+      });
+    }
+
+    // --- 15. UI EVENT BINDINGS ---
+    function setupUIEvents() {
+      // Buttons
+      document.getElementById('btn-skill-q').addEventListener('pointerdown', e => {
+        e.preventDefault();
+        game.player.useSkillQ();
+      });
+
+      document.getElementById('btn-skill-w').addEventListener('pointerdown', e => {
+        e.preventDefault();
+        game.player.useSkillW(game.bot);
+      });
+
+      document.getElementById('btn-skill-e').addEventListener('pointerdown', e => {
+        e.preventDefault();
+        game.player.useSkillE();
+      });
+
+      document.getElementById('btn-skill-r').addEventListener('pointerdown', e => {
+        e.preventDefault();
+        game.player.useSkillR(game.bot);
+      });
+
+      document.getElementById('btn-attack').addEventListener('pointerdown', e => {
+        e.preventDefault();
+        game.player.useAttack(game.bot);
+      });
+
+      // Top HUD Controls
+      document.getElementById('btn-audio').addEventListener('click', () => {
+        const on = sound.toggleAudio();
+        document.getElementById('btn-audio').textContent = on ? '🔊' : '🔇';
+      });
+
+      document.getElementById('btn-pause').addEventListener('click', () => {
+        togglePause();
+      });
+
+      document.getElementById('btn-reset').addEventListener('click', () => {
+        initGame();
+      });
+
+      document.getElementById('btn-modal-action').addEventListener('click', () => {
+        document.getElementById('game-modal').classList.remove('show');
+        if (game.gameOver) {
+          initGame();
+        } else {
+          game.paused = false;
+        }
+      });
+    }
+
+    function togglePause() {
+      game.paused = !game.paused;
+      if (game.paused) {
+        showModal('TẠM DỪNG TRẬN ĐẤU', 'Hướng dẫn điều khiển:\n• PC: WASD / Mũi tên để di chuyển. Q, W, E, R dùng bảo bối. Space / Click để đánh.\n• Mobile: Dùng Virtual Joystick góc trái và các nút bảo bối góc phải.');
+      } else {
+        document.getElementById('game-modal').classList.remove('show');
+      }
+    }
+
+    function showModal(title, desc) {
+      document.getElementById('modal-title').textContent = title;
+      document.getElementById('modal-desc').textContent = desc;
+      document.getElementById('stat-dmg').textContent = game.statDamageDealt;
+      document.getElementById('stat-gadgets').textContent = game.statGadgetsUsed;
+      document.getElementById('stat-portals').textContent = game.statPortalsUsed;
+      document.getElementById('stat-time').textContent = formatTime(120 - game.matchTime);
+      document.getElementById('btn-modal-action').textContent = game.gameOver ? 'CHƠI LẠI NGAY' : 'TIẾP TỤC CHIẾN ĐẤU';
+      document.getElementById('game-modal').classList.add('show');
+    }
+
+    function endMatch(reason) {
+      game.gameOver = true;
+      let title = 'HẾT GIỜ CHIẾN ĐẤU!';
+      if (game.bot.hp <= 0) {
+        title = '🏆 K.O. - DORAEMON CHIẾN THẮNG!';
+      } else if (game.player.hp <= 0) {
+        title = '💀 K.O. - CONAN CHIẾN THẮNG!';
+      }
+      showModal(title, reason);
+    }
+
+    function formatTime(sec) {
+      const m = Math.floor(sec / 60).toString().padStart(2, '0');
+      const s = (sec % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    function updateTimerUI() {
+      document.getElementById('match-timer').textContent = formatTime(game.matchTime);
+    }
+
+    // --- 16. UPDATE LOGIC (Physics, Combat collisions, Cooldown UI) ---
+    function update(dt) {
+      // Screen shake decay
+      if (game.shakePower > 0) {
+        game.shakeX = (Math.random() - 0.5) * game.shakePower * 2;
+        game.shakeY = (Math.random() - 0.5) * game.shakePower * 2;
+        game.shakePower = Math.max(0, game.shakePower - dt * 25);
+      } else {
+        game.shakeX = 0;
+        game.shakeY = 0;
+      }
+
+      // Update Characters
+      game.player.update(dt);
+      game.bot.update(dt, game.player);
+
+      // Portals update
+      game.portals = game.portals.filter(p => p.update(dt, [game.player, game.bot]));
+
+      // Projectiles update & Collision check
+      game.projectiles = game.projectiles.filter(proj => {
+        const alive = proj.update(dt);
+        if (!alive) return false;
+
+        // Collision with Bot (Player attacks)
+        if (proj.owner === 'player') {
+          const dist = Math.hypot(proj.x - game.bot.x, proj.y - game.bot.y);
+          if (dist < proj.radius + game.bot.radius * game.bot.scale) {
+            const dead = game.bot.takeDamage(proj.damage, proj.vx * 0.4, proj.vy * 0.4);
+            game.comicTexts.push(new ComicText(game.bot.x, game.bot.y - 40, 'HIT! -' + proj.damage, '#ffd600', 1.2));
+            if (dead) endMatch('Doraemon đã hạ gục Conan bằng sức mạnh bảo bối!');
+            return false;
+          }
+        }
+
+        // Collision with Player (Bot attacks)
+        if (proj.owner === 'bot') {
+          const dist = Math.hypot(proj.x - game.player.x, proj.y - game.player.y);
+          if (dist < proj.radius + game.player.radius * game.player.scale) {
+            if (proj.type === 'stun_dart') {
+              game.player.applyStun(1.5);
+            }
+            const dead = game.player.takeDamage(proj.damage, proj.vx * 0.4, proj.vy * 0.4);
+            game.comicTexts.push(new ComicText(game.player.x, game.player.y - 40, 'HIT! -' + proj.damage, '#ef4444', 1.2));
+            if (dead) endMatch('Conan đã hạ gục Doraemon bằng những suy luận sắc bén và vũ khí của tiến sĩ Agasa!');
+            return false;
+          }
+        }
+
+        return true;
+      });
+
+      // Update Particles
+      game.particles = game.particles.filter(p => p.update(dt));
+
+      // Update Comic Texts
+      game.comicTexts = game.comicTexts.filter(t => t.update(dt));
+
+      // Camera smooth follow Doraemon
+      const targetCamX = game.player.x - game.width / 2;
+      const targetCamY = game.player.y - game.height / 2;
+      game.camera.x += (targetCamX - game.camera.x) * dt * 6;
+      game.camera.y += (targetCamY - game.camera.y) * dt * 6;
+
+      // Clamp camera within arena
+      game.camera.x = Math.max(0, Math.min(ARENA.width - game.width, game.camera.x));
+      game.camera.y = Math.max(0, Math.min(ARENA.height - game.height, game.camera.y));
+
+      // Update HUD UI Elements
+      updateHUD();
+    }
+
+    function updateHUD() {
+      // HP Bars
+      const pBar = document.getElementById('player-hp-bar');
+      const pPercent = Math.max(0, (game.player.hp / game.player.maxHp) * 100);
+      pBar.style.width = pPercent + '%';
+      pBar.classList.toggle('low', pPercent < 30);
+
+      const eBar = document.getElementById('enemy-hp-bar');
+      const ePercent = Math.max(0, (game.bot.hp / game.bot.maxHp) * 100);
+      eBar.style.width = ePercent + '%';
+
+      // Energy
+      document.getElementById('player-energy-bar').style.width = (game.player.energy / game.player.maxEnergy * 100) + '%';
+      document.getElementById('enemy-energy-bar').style.width = (game.bot.energy / game.bot.maxEnergy * 100) + '%';
+
+      // Status Badges
+      const pBadge = document.getElementById('player-status-badge');
+      if (game.player.isFlying) {
+        pBadge.style.display = 'inline-block';
+        pBadge.textContent = `BAY (${game.player.flyTimer.toFixed(1)}s)`;
+        pBadge.style.background = '#fde047';
+        pBadge.style.color = '#000';
+      } else if (game.player.isStunned) {
+        pBadge.style.display = 'inline-block';
+        pBadge.textContent = 'CHOÁNG!';
+        pBadge.style.background = '#38bdf8';
+        pBadge.style.color = '#000';
+      } else {
+        pBadge.style.display = 'none';
+      }
+
+      const eBadge = document.getElementById('enemy-status-badge');
+      if (game.bot.isShrunk) {
+        eBadge.style.display = 'inline-block';
+        eBadge.textContent = `THU NHỎ 70% (${game.bot.shrunkTimer.toFixed(1)}s)`;
+        eBadge.style.background = '#a3e635';
+        eBadge.style.color = '#000';
+      } else if (game.bot.isSkating) {
+        eBadge.style.display = 'inline-block';
+        eBadge.textContent = 'VÁN TRƯỢT TĂNG TỐC';
+        eBadge.style.background = '#38bdf8';
+        eBadge.style.color = '#000';
+      } else {
+        eBadge.style.display = 'none';
+      }
+
+      // Skill Cooldown Overlays
+      updateCooldownBadge('cd-q', game.player.cooldowns.q);
+      updateCooldownBadge('cd-w', game.player.cooldowns.w);
+      updateCooldownBadge('cd-e', game.player.cooldowns.e);
+      updateCooldownBadge('cd-r', game.player.cooldowns.r);
+    }
+
+    function updateCooldownBadge(elementId, timeRemaining) {
+      const el = document.getElementById(elementId);
+      if (timeRemaining > 0) {
+        el.classList.add('active');
+        el.textContent = Math.ceil(timeRemaining);
+      } else {
+        el.classList.remove('active');
+      }
+    }
+
+    // --- 17. CANVAS RENDERING (Cel-Shading, Arena Map, Minimap) ---
+    function render() {
+      const ctx = game.ctx;
+      ctx.clearRect(0, 0, game.width, game.height);
+
+      ctx.save();
+      // Apply Camera Transform & Screen Shake
+      ctx.translate(-game.camera.x + game.shakeX, -game.camera.y + game.shakeY);
+
+      // Draw Arena Background
+      drawArenaBackground(ctx);
+
+      // Draw Teleport Portals
+      game.portals.forEach(p => p.draw(ctx));
+
+      // Draw Characters
+      game.bot.draw(ctx);
+      game.player.draw(ctx);
+
+      // Draw Projectiles
+      game.projectiles.forEach(proj => proj.draw(ctx));
+
+      // Draw Particles
+      game.particles.forEach(p => p.draw(ctx));
+
+      // Draw Comic Texts
+      game.comicTexts.forEach(t => t.draw(ctx));
+
+      ctx.restore();
+
+      // Render Tactical Radar Minimap
+      renderMinimap();
+    }
+
+    function drawArenaBackground(ctx) {
+      // Draw Tokyo Akihabara Night Street Image or Anime Grid
+      if (ASSETS.tokyoBg.loaded) {
+        ctx.drawImage(ASSETS.tokyoBg.img, 0, 0, ARENA.width, ARENA.height);
+        // Comic Manga ink overlay tint
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.45)';
+        ctx.fillRect(0, 0, ARENA.width, ARENA.height);
+      } else {
+        // Fallback Anime Battle Grid
+        ctx.fillStyle = '#0a1120';
+        ctx.fillRect(0, 0, ARENA.width, ARENA.height);
+
+        // Cel-shaded isometric grid lines
+        ctx.strokeStyle = 'rgba(0, 229, 255, 0.15)';
+        ctx.lineWidth = 2;
+        const gridSize = 100;
+        for (let x = 0; x < ARENA.width; x += gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, ARENA.height);
+          ctx.stroke();
+        }
+        for (let y = 0; y < ARENA.height; y += gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(ARENA.width, y);
+          ctx.stroke();
+        }
+      }
+
+      // Arena Comic Bounds
+      ctx.lineWidth = 14;
+      ctx.strokeStyle = '#000';
+      ctx.strokeRect(10, 10, ARENA.width - 20, ARENA.height - 20);
+
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = '#ffd600';
+      ctx.strokeRect(14, 14, ARENA.width - 28, ARENA.height - 28);
+
+      // Center Battle Ring
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = 'rgba(255, 214, 0, 0.35)';
+      ctx.beginPath();
+      ctx.arc(ARENA.width / 2, ARENA.height / 2, 220, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.font = '900 36px var(--font-comic)';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.textAlign = 'center';
+      ctx.fillText('TOON_VERSE ARENA', ARENA.width / 2, ARENA.height / 2 + 12);
+    }
+
+    // --- 18. TACTICAL MINIMAP RADAR ---
+    function renderMinimap() {
+      const mctx = game.minimapCtx;
+      const mw = game.minimapCanvas.width;
+      const mh = game.minimapCanvas.height;
+
+      mctx.clearRect(0, 0, mw, mh);
+
+      const scaleX = mw / ARENA.width;
+      const scaleY = mh / ARENA.height;
+
+      // Arena border
+      mctx.strokeStyle = '#ffd600';
+      mctx.lineWidth = 2;
+      mctx.strokeRect(2, 2, mw - 4, mh - 4);
+
+      // Portals
+      game.portals.forEach(p => {
+        mctx.fillStyle = '#ec4899';
+        mctx.fillRect(p.doorA.x * scaleX - 2, p.doorA.y * scaleY - 2, 4, 4);
+        mctx.fillRect(p.doorB.x * scaleX - 2, p.doorB.y * scaleY - 2, 4, 4);
+      });
+
+      // Conan (Red Dot)
+      mctx.fillStyle = '#ef4444';
+      mctx.beginPath();
+      mctx.arc(game.bot.x * scaleX, game.bot.y * scaleY, 4, 0, Math.PI * 2);
+      mctx.fill();
+
+      // Doraemon (Green Dot)
+      mctx.fillStyle = '#10b981';
+      mctx.beginPath();
+      mctx.arc(game.player.x * scaleX, game.player.y * scaleY, 4.5, 0, Math.PI * 2);
+      mctx.fill();
+
+      // Viewport Camera Rect
+      mctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      mctx.lineWidth = 1;
+      mctx.strokeRect(
+        game.camera.x * scaleX,
+        game.camera.y * scaleY,
+        game.width * scaleX,
+        game.height * scaleY
+      );
+    }
+
+    // Start everything on load
+    window.addEventListener('load', () => {
+      initGame();
+    });
+  </script>
+</body>
+</html>

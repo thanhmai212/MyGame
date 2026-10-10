@@ -1,0 +1,6 @@
+{
+  "name": "TOON VERSE",
+  "description": "TOON VERSE: Multiverse Clash - Doraemon vs Conan fighting arena with special anime gadgets and superpowers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
